@@ -1,5 +1,5 @@
 var CACHE_PREFIX = 'zgzs-' + encodeURIComponent(self.registration.scope) + '-';
-var CACHE = CACHE_PREFIX + '9b495364';
+var CACHE = CACHE_PREFIX + '7675a7a0';
 var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {

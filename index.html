@@ -38,6 +38,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px;
   border-bottom: 1px solid var(--line); background: var(--bg); }
 .brand { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.top-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.top-actions .btn.ghost { padding: 4px 6px; }
+@media (max-width: 520px) {
+  .brand { font-size: 15px; }
+  .badge { display: none; }
+  .top-actions .btn.small { padding: 5px 8px; font-size: 13px; }
+}
+.plan-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--sub); margin: 0 2px 10px; min-height: 20px; }
+.plan-bar b { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-bar .dirty { color: var(--warn); white-space: nowrap; }
+.plan-bar .saved { color: #0f7b3f; white-space: nowrap; }
+.item-head .save-btn { border: 1px solid #cddcfb; background: #f3f7ff; color: var(--primary); border-radius: 7px; padding: 3px 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.item-head .save-btn.ok { border-color: #9ad4b0; background: #e3f6ea; color: #0f7b3f; }
+.lib-add { background: #f7faff; border: 1px dashed #cddcfb; border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+.plan-list .lib-row .btn { flex: 0 0 auto; }
+.section-label { font-size: 13px; color: var(--sub); margin: 14px 0 4px; }
 .badge { font-size: 11px; font-weight: 500; color: #0f7b3f; background: #e3f6ea; padding: 2px 7px; border-radius: 99px; }
 
 main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -165,7 +181,11 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
 <div id="app">
   <header class="topbar">
     <div class="brand">装柜助手<span class="badge" id="offlineStatus">在线预览</span></div>
-    <button class="btn ghost" id="btnMenu">更多</button>
+    <div class="top-actions">
+      <button class="btn small" id="btnPlans">我的方案</button>
+      <button class="btn small primary" id="btnSavePlan">保存方案</button>
+      <button class="btn ghost" id="btnMenu">更多</button>
+    </div>
   </header>
 
   <main>
@@ -196,6 +216,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
 
     <aside id="panel">
       <div class="panel-scroll">
+        <div class="plan-bar" id="planBar"></div>
         <div class="card">
           <div class="card-title">柜型</div>
           <div class="seg" id="ctypes"></div>
@@ -211,7 +232,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
           <div class="card-title">
             货物清单
             <span class="title-actions">
-              <button class="btn small" id="btnLib">产品库</button>
+              <button class="btn small" id="btnLib">常用货物</button>
               <button class="btn small" id="btnPaste">粘贴表格</button>
             </span>
           </div>
@@ -1638,7 +1659,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   global.Packer = { pack: pack, orientations: orientations };
 })(typeof window !== 'undefined' ? window : this);
 </script>
-<script>var APP_VERSION = '9b495364';</script>
+<script>var APP_VERSION = '7675a7a0';</script>
 <script>(function () {
   'use strict';
 
@@ -1678,6 +1699,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       ctype: c.key, C: { L: c.L, W: c.W, H: c.H, maxKg: c.maxKg }, ordered: false,
       items: [newItem(EXAMPLE_LIB[0], 350, COLORS[0])],
       library: EXAMPLE_LIB.map(function (p) { return Object.assign({ id: uid() }, p); }),
+      plans: [], currentPlanId: null, planDirty: false,
       tipClosed: false
     };
   }
@@ -1691,6 +1713,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   }
 
   var state = load() || defaultState();
+  if (!Array.isArray(state.plans)) state.plans = [];
   var saveTimer = null;
   function save() {
     clearTimeout(saveTimer);
@@ -1709,6 +1732,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
 
   function markStale() {
     if (result) { stale = true; $('#stale').hidden = false; }
+    if (!state.planDirty) { state.planDirty = true; renderPlanBar(); }
   }
 
   // ---------- 提示 ----------
@@ -1765,7 +1789,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       '<div class="item-head">' +
       '<label class="swatch" style="background:' + esc(it.color) + '"><input type="color" data-f="color" value="' + esc(it.color) + '"></label>' +
       '<input class="name" type="text" data-f="name" value="' + esc(it.name) + '" placeholder="货物名称 / 型号">' +
-      '<button class="icon-btn" data-act="save" title="存入产品库">☆</button>' +
+      '<button class="save-btn" data-act="save" title="把这个货物的尺寸存起来，下次直接选">存为常用</button>' +
       '<button class="icon-btn danger" data-act="del" title="删除">✕</button>' +
       '</div>' +
       '<div class="grid3">' + f('l', '长 cm') + f('w', '宽 cm') + f('h', '高 cm') + f('kg', '毛重 kg') + f('qty', '数量（箱）') + f('maxLayers', '最多叠几层', '不限') + '</div>' +
@@ -1775,7 +1799,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
 
   function renderItems() {
     $('#items').innerHTML = state.items.map(itemHTML).join('') ||
-      '<div class="hint">还没有货物，点下面「添加货物」或从「产品库」选择。</div>';
+      '<div class="hint">还没有货物，点下面「添加货物」或从「常用货物」选择。</div>';
     renderTotals();
   }
 
@@ -1813,12 +1837,16 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       state.items = state.items.filter(function (x) { return x !== it; });
       renderItems(); save(); markStale();
     } else if (b.dataset.act === 'save') {
-      if (!(num(it.l) && num(it.w) && num(it.h))) return toast('先填好长宽高再存入产品库');
+      if (!(num(it.l) && num(it.w) && num(it.h))) return toast('先填好长宽高再存为常用');
       var name = it.name || ('货物 ' + it.l + '×' + it.w + '×' + it.h);
       var exist = state.library.filter(function (p) { return p.name === name; })[0];
       var data = { name: name, l: num(it.l), w: num(it.w), h: num(it.h), kg: num(it.kg), sideways: it.sideways, maxLayers: num(it.maxLayers) };
       if (exist) Object.assign(exist, data); else state.library.push(Object.assign({ id: uid() }, data));
-      save(); toast((exist ? '已更新产品库：' : '已存入产品库：') + name);
+      save();
+      b.textContent = exist ? '已更新' : '已保存';
+      b.classList.add('ok');
+      setTimeout(function () { b.textContent = '存为常用'; b.classList.remove('ok'); }, 1600);
+      toast((exist ? '已更新常用货物：' : '已存为常用货物：') + name);
     }
   });
 
@@ -1906,7 +1934,10 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     if (cs.length > 1 && last && containerStats(last).volPct < 40) {
       html += '<div class="hint">提示：最后一柜只装了 ' + fmt(containerStats(last).volPct, 0) + '%，可以考虑调整数量或换小一点的柜型。</div>';
     }
+    html += '<div style="height:8px"></div><button class="btn primary big" id="btnSavePlan2">保存这个装柜方案</button>';
     el.innerHTML = html;
+    var extra = $('#btnSavePlan2');
+    if (extra) extra.addEventListener('click', openSavePlan);
   }
   $('#result').addEventListener('click', function (e) {
     var r = e.target.closest('.res-row'); if (!r) return;
@@ -1997,14 +2028,39 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
         (p.maxLayers ? ' · 最多叠 ' + p.maxLayers + ' 层' : '') + '</small></div>' +
         '<input type="number" inputmode="numeric" placeholder="数量" class="lib-qty">' +
         '<button class="btn small primary" data-act="add">添加</button>' +
-        '<button class="icon-btn danger" data-act="del" title="从产品库删除">✕</button></div>';
+        '<button class="icon-btn danger" data-act="del" title="删除">✕</button></div>';
     }).join('');
-    openModal('产品库', '<div class="hint">在货物卡片上点 ☆ 可以把货物存进产品库，下次直接选。</div>' +
-      (rows || '<div class="hint">产品库是空的。</div>'));
+    openModal('常用货物',
+      '<div class="lib-add">' +
+      '<div class="hint" style="margin-top:0">把纸箱尺寸存下来，下次填数量就能用。同名会覆盖旧尺寸。</div>' +
+      '<label><span>名称 / 型号</span><input type="text" id="libNewName" placeholder="例如 NT-50 台式饮水机"></label>' +
+      '<div class="grid3" style="margin-top:8px">' +
+      '<label><span>长 cm</span><input type="number" inputmode="decimal" id="libNewL"></label>' +
+      '<label><span>宽 cm</span><input type="number" inputmode="decimal" id="libNewW"></label>' +
+      '<label><span>高 cm</span><input type="number" inputmode="decimal" id="libNewH"></label>' +
+      '<label><span>毛重 kg</span><input type="number" inputmode="decimal" id="libNewKg"></label>' +
+      '<label><span>最多叠几层</span><input type="number" inputmode="numeric" id="libNewLayers" placeholder="不限"></label>' +
+      '</div>' +
+      '<label class="check"><input type="checkbox" id="libNewSide"> 可以侧放 / 躺放</label>' +
+      '<button class="btn primary big" data-act="newlib" style="margin-top:10px">保存这个尺寸</button>' +
+      '</div>' +
+      '<div class="section-label">已保存 ' + state.library.length + ' 个（填数量后点「添加」放进清单）</div>' +
+      (rows || '<div class="hint">还没有常用货物。</div>'));
   }
   $('#btnLib').addEventListener('click', renderLibrary);
   $('#modalBody').addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'newlib') {
+      var name = ($('#libNewName') && $('#libNewName').value.trim()) || '';
+      var l = num($('#libNewL') && $('#libNewL').value), w = num($('#libNewW') && $('#libNewW').value), h = num($('#libNewH') && $('#libNewH').value);
+      if (!(l && w && h)) return toast('请先填好长、宽、高');
+      if (!name) name = '货物 ' + l + '×' + w + '×' + h;
+      var exist = state.library.filter(function (p) { return p.name === name; })[0];
+      var data = { name: name, l: l, w: w, h: h, kg: num($('#libNewKg') && $('#libNewKg').value), sideways: !!( $('#libNewSide') && $('#libNewSide').checked), maxLayers: num($('#libNewLayers') && $('#libNewLayers').value) };
+      if (exist) Object.assign(exist, data); else state.library.push(Object.assign({ id: uid() }, data));
+      save(); renderLibrary(); toast((exist ? '已更新：' : '已保存：') + name);
+      return;
+    }
     var row = b.closest('.lib-row'); if (!row) return;
     var p = state.library.filter(function (x) { return x.id === row.dataset.id; })[0];
     if (!p) return;
@@ -2015,9 +2071,148 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       toast('已添加：' + p.name);
       $('.lib-qty', row).value = '';
     } else if (b.dataset.act === 'del') {
-      if (!confirm('从产品库删除「' + p.name + '」？')) return;
+      if (!confirm('从常用货物里删除「' + p.name + '」？')) return;
       state.library = state.library.filter(function (x) { return x !== p; });
       save(); renderLibrary();
+    }
+  });
+
+  // ---------- 方案 ----------
+  function currentPlan() {
+    return state.plans.filter(function (p) { return p.id === state.currentPlanId; })[0] || null;
+  }
+
+  function timeStr(t) {
+    var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function planSummary(p) {
+    var n = 0;
+    p.items.forEach(function (it) { n += Math.floor(num(it.qty)); });
+    return (p.ctype === 'custom' ? '自定义柜' : p.ctype) + ' · ' + p.items.length + ' 种货物 · ' + fmt(n) + ' 箱' +
+      (p.containers ? ' · 需 ' + p.containers + ' 柜' : '');
+  }
+
+  function renderPlanBar() {
+    var p = currentPlan(), bar = $('#planBar');
+    if (!p) {
+      bar.innerHTML = '<span>输入的内容会自动保存在本机。要留存多个方案，点右上角「保存方案」。</span>';
+      return;
+    }
+    bar.innerHTML = '<span>当前方案：</span><b>' + esc(p.name) + '</b>' +
+      (state.planDirty ? '<span class="dirty">· 有改动未保存</span>' : '<span class="saved">· 已保存</span>');
+  }
+
+  function defaultPlanName() {
+    var names = state.items.map(function (i) { return i.name; }).filter(Boolean);
+    var d = new Date();
+    return (names[0] || '装柜方案') + (names.length > 1 ? ' 等' + names.length + '种' : '') + ' ' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function snapshotPlan(name) {
+    return {
+      name: name, savedAt: Date.now(), ctype: state.ctype, C: Object.assign({}, state.C), ordered: !!state.ordered,
+      items: state.items.map(function (i) { return Object.assign({}, i); }),
+      containers: result && !stale ? result.containers.length : null
+    };
+  }
+
+  function openSavePlan() {
+    if (!state.items.length) return toast('货物清单是空的，先添加货物');
+    var cur = currentPlan();
+    openModal('保存方案',
+      '<div class="hint">保存当前的柜型和整份货物清单。以后在「我的方案」里一点就能打开。</div>' +
+      '<label><span>方案名称（比如客户名、订单号）</span><input type="text" id="planName"></label>' +
+      '<div style="height:12px"></div><button class="btn primary big" id="planSaveOk">' + (cur ? '保存（覆盖原方案）' : '保存') + '</button>' +
+      (cur ? '<div class="hint">想保留原方案、另存一份新的：把名称改成别的再保存。</div>' : ''));
+    var input = $('#planName');
+    input.value = cur ? cur.name : defaultPlanName();
+    var ok = $('#planSaveOk');
+    input.addEventListener('input', function () {
+      var same = state.plans.filter(function (p) { return p.name === input.value.trim(); })[0];
+      ok.textContent = same ? '保存（覆盖「' + same.name + '」）' : '保存为新方案';
+    });
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') ok.click(); });
+    ok.addEventListener('click', function () {
+      var name = input.value.trim();
+      if (!name) return toast('请填写方案名称');
+      var exist = state.plans.filter(function (p) { return p.name === name; })[0];
+      if (exist && exist.id !== state.currentPlanId && !confirm('已经有叫「' + name + '」的方案，要覆盖它吗？')) return;
+      var data = snapshotPlan(name);
+      if (exist) Object.assign(exist, data);
+      else { data.id = uid(); state.plans.unshift(data); exist = null; }
+      state.currentPlanId = exist ? exist.id : data.id;
+      state.planDirty = false;
+      save(); closeModal(); renderPlanBar();
+      toast((exist ? '已更新方案：' : '已保存方案：') + name);
+    });
+    setTimeout(function () { input.focus(); input.select(); }, 50);
+  }
+
+  function openPlans() {
+    var list = state.plans.slice().sort(function (a, b) { return b.savedAt - a.savedAt; });
+    var rows = list.map(function (p) {
+      return '<div class="lib-row" data-pid="' + p.id + '"><div class="info"><b>' + esc(p.name) + (p.id === state.currentPlanId ? '（当前）' : '') + '</b>' +
+        '<small>' + esc(planSummary(p)) + ' · ' + timeStr(p.savedAt) + '</small></div>' +
+        '<button class="btn small primary" data-pact="open">打开</button>' +
+        '<button class="btn small" data-pact="share">导出</button>' +
+        '<button class="icon-btn danger" data-pact="del" title="删除">✕</button></div>';
+    }).join('');
+    openModal('我的方案',
+      '<button class="btn primary big" data-pact="save">＋ 保存当前方案</button>' +
+      '<div class="section-label">已保存 ' + list.length + ' 个方案（点「导出」可以把单个方案发给同事，对方在「更多 → 导入文件」打开）</div>' +
+      '<div class="plan-list">' + (rows || '<div class="hint">还没有保存过方案。</div>') + '</div>' +
+      '<div style="height:10px"></div><button class="btn dashed" data-pact="new">新建空白方案</button>');
+  }
+
+  function loadPlan(p) {
+    state.ctype = p.ctype;
+    state.C = Object.assign({}, p.C);
+    state.ordered = !!p.ordered;
+    state.items = p.items.map(function (i) { return Object.assign({}, i, { id: uid() }); });
+    state.currentPlanId = p.id;
+    state.planDirty = false;
+    $('#optOrdered').checked = state.ordered;
+    renderContainerTypes(); renderItems(); renderPlanBar(); save();
+    result = null; stale = false; $('#stale').hidden = true; $('#resultCard').hidden = true;
+    View.setContainer(state.C);
+    showContainer(0);
+    if (state.items.some(function (i) { return num(i.qty) > 0; })) run();
+  }
+
+  function confirmLeave() {
+    if (!state.planDirty || !state.items.length) return true;
+    return confirm('当前货物清单有改动还没保存成方案，继续的话这些改动会被替换。确定继续？');
+  }
+
+  $('#btnPlans').addEventListener('click', openPlans);
+  $('#btnSavePlan').addEventListener('click', openSavePlan);
+  $('#modalBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pact]'); if (!b) return;
+    var act = b.dataset.pact;
+    if (act === 'save') return openSavePlan();
+    if (act === 'new') {
+      if (!confirmLeave()) return;
+      state.items = []; state.currentPlanId = null; state.planDirty = false;
+      result = null; stale = false; $('#stale').hidden = true; $('#resultCard').hidden = true;
+      renderItems(); renderPlanBar(); save(); showContainer(0); closeModal();
+      return toast('已新建空白方案');
+    }
+    var row = b.closest('[data-pid]'); if (!row) return;
+    var p = state.plans.filter(function (x) { return x.id === row.dataset.pid; })[0];
+    if (!p) return;
+    if (act === 'open') {
+      if (p.id !== state.currentPlanId && !confirmLeave()) return;
+      closeModal(); loadPlan(p); toast('已打开方案：' + p.name);
+    } else if (act === 'share') {
+      var data = { app: 'zgzs', type: 'plan', version: 1, plan: p };
+      saveFile(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), '装柜方案-' + p.name.replace(/[\\/:*?"<>|]/g, '_') + '.json');
+    } else if (act === 'del') {
+      if (!confirm('删除方案「' + p.name + '」？删除后不能恢复。')) return;
+      state.plans = state.plans.filter(function (x) { return x !== p; });
+      if (state.currentPlanId === p.id) { state.currentPlanId = null; state.planDirty = false; renderPlanBar(); }
+      save(); openPlans();
     }
   });
 
@@ -2072,8 +2267,8 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     openModal('更多', '<div class="menu-list">' +
       '<button data-m="img">导出装柜图<small>当前这一柜的 3D 图，可以发给仓库或客户</small></button>' +
       '<button data-m="csv">导出装柜清单（Excel 可打开）<small>每个柜装了哪些货、多少箱</small></button>' +
-      '<button data-m="backup">备份数据<small>把产品库和货物清单保存成文件，换设备时恢复</small></button>' +
-      '<button data-m="restore">恢复数据<small>从备份文件导入</small></button>' +
+      '<button data-m="backup">备份全部数据<small>常用货物、所有方案、当前清单存成一个文件，换手机或给同事用</small></button>' +
+      '<button data-m="restore">导入文件<small>导入备份文件，或同事发来的方案文件</small></button>' +
       '<button data-m="help">使用说明 / 添加到主屏幕</button>' +
       '<button data-m="reset">清空货物清单</button>' +
       '</div><div class="hint" style="margin-top:12px">版本 ' + esc(APP_VERSION) + ' · 所有数据只保存在本机</div>');
@@ -2085,12 +2280,12 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     else if (m === 'csv') { closeModal(); exportCSV(); }
     else if (m === 'backup') {
       closeModal();
-      var data = { app: 'zgzs', version: 1, savedAt: new Date().toISOString(), library: state.library, items: state.items, C: state.C, ctype: state.ctype };
+      var data = { app: 'zgzs', version: 1, savedAt: new Date().toISOString(), library: state.library, plans: state.plans, items: state.items, C: state.C, ctype: state.ctype };
       saveFile(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), '装柜助手备份-' + dateStr() + '.json');
     } else if (m === 'restore') { closeModal(); $('#fileInput').click(); }
     else if (m === 'help') showHelp();
     else if (m === 'reset') {
-      if (!confirm('清空当前货物清单？（产品库不受影响）')) return;
+      if (!confirm('清空当前货物清单？（常用货物和已保存的方案不受影响）')) return;
       state.items = []; renderItems(); save(); markStale(); closeModal();
     }
   });
@@ -2101,14 +2296,27 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     reader.onload = function () {
       try {
         var d = JSON.parse(reader.result);
-        if (d.app !== 'zgzs') throw new Error('不是装柜助手的备份文件');
-        if (Array.isArray(d.library)) state.library = d.library;
-        if (Array.isArray(d.items)) state.items = d.items;
-        if (d.C) { state.C = d.C; state.ctype = d.ctype || 'custom'; }
-        save(); renderContainerTypes(); renderItems(); markStale();
-        toast('已恢复：产品库 ' + state.library.length + ' 个，货物 ' + state.items.length + ' 个');
-      } catch (err) { toast('恢复失败：' + err.message); }
-      e.target.value = '';
+        if (d.app !== 'zgzs') throw new Error('不是装柜助手的文件');
+        if (d.type === 'plan' && d.plan && Array.isArray(d.plan.items)) {
+          var p = Object.assign({}, d.plan, { id: uid(), savedAt: Date.now() });
+          var names = state.plans.map(function (x) { return x.name; });
+          while (names.indexOf(p.name) >= 0) p.name += '（导入）';
+          if (!confirmLeave()) return;
+          state.plans.unshift(p);
+          loadPlan(p);
+          toast('已导入并打开方案：' + p.name);
+        } else {
+          if (!confirm('导入备份会替换本机的常用货物、方案和当前清单，确定吗？')) return;
+          if (Array.isArray(d.library)) state.library = d.library;
+          if (Array.isArray(d.plans)) state.plans = d.plans;
+          if (Array.isArray(d.items)) state.items = d.items;
+          if (d.C) { state.C = d.C; state.ctype = d.ctype || 'custom'; }
+          state.currentPlanId = null; state.planDirty = false;
+          save(); renderContainerTypes(); renderItems(); renderPlanBar(); markStale();
+          toast('已导入：常用货物 ' + state.library.length + ' 个，方案 ' + state.plans.length + ' 个');
+        }
+      } catch (err) { toast('导入失败：' + err.message); }
+      finally { e.target.value = ''; }
     };
     reader.readAsText(f);
   });
@@ -2122,6 +2330,11 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       '<li>点「开始装柜」，上面会出 3D 图。手指拖动旋转，双指缩放，两指拖动平移。</li>' +
       '<li>拖动底部进度条或点 ▶，可以看一箱一箱的装货顺序（从柜子最里面往柜门装）。</li>' +
       '<li>装不下会自动分到第 2、3 柜，点左上角 ‹ › 切换。</li></ol>' +
+      '<h4>保存</h4><ol>' +
+      '<li>正在填的内容会自动保存在本机，关掉再打开还在。</li>' +
+      '<li>常用的纸箱尺寸：在货物卡片上点「存为常用」，下次在「常用货物」里直接选。</li>' +
+      '<li>整个装柜方案（柜型 + 货物清单）：点右上角「保存方案」起个名字，以后在「我的方案」里打开。</li>' +
+      '<li>换手机或给同事：「更多 → 备份全部数据」，对方「更多 → 导入文件」。单个方案可以在「我的方案」里点「导出」。</li></ol>' +
       '<h4>添加到主屏幕（断网也能用）</h4>' +
       '<p><b>iPhone / iPad：</b>用 Safari 打开网址 → 点底部「分享」按钮 → 「添加到主屏幕」。</p>' +
       '<p><b>安卓：</b>用 Chrome 或手机自带浏览器打开 → 菜单 → 「添加到主屏幕」或「安装应用」。</p>' +
@@ -2172,7 +2385,8 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
       g.fillStyle = '#1d2633';
       g.font = 'bold 40px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
-      g.fillText(result.cname + ' · 第 ' + (current + 1) + ' / ' + result.containers.length + ' 柜', 40, 62);
+      var plan = currentPlan();
+      g.fillText((plan ? plan.name + ' · ' : '') + result.cname + ' · 第 ' + (current + 1) + ' / ' + result.containers.length + ' 柜', 40, 62);
       g.font = '28px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
       g.fillStyle = '#4a5565';
       g.fillText(fmt(s.n) + ' 箱 · 体积 ' + fmt(s.vol, 1) + ' m³（' + fmt(s.volPct, 1) + '%） · 重量 ' + fmt(s.kg) + ' kg · ' + new Date().toLocaleDateString('zh-CN'), 40, 108);
@@ -2436,6 +2650,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   renderItems();
   View.setContainer(state.C);
   View.resize();
+  renderPlanBar();
   maybeInstallTip();
 
   var offlineStatus = $('#offlineStatus');
