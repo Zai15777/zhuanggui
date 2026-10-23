@@ -1659,7 +1659,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   global.Packer = { pack: pack, orientations: orientations };
 })(typeof window !== 'undefined' ? window : this);
 </script>
-<script>var APP_VERSION = '7675a7a0';</script>
+<script>var APP_VERSION = '81e7a744';</script>
 <script>(function () {
   'use strict';
 
@@ -2659,6 +2659,11 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   } else if (window.isSecureContext && 'serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
     offlineStatus.textContent = '准备离线…';
     window.addEventListener('load', function () {
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (window.__zgzsReloaded) return;
+        window.__zgzsReloaded = true;
+        location.reload();
+      });
       navigator.serviceWorker.register('sw.js').then(function (registration) {
         var installing = registration.installing;
         if (installing) installing.addEventListener('statechange', function () {

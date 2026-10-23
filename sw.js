@@ -1,5 +1,5 @@
 var CACHE_PREFIX = 'zgzs-' + encodeURIComponent(self.registration.scope) + '-';
-var CACHE = CACHE_PREFIX + '7675a7a0';
+var CACHE = CACHE_PREFIX + '81e7a744';
 var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
@@ -12,17 +12,25 @@ self.addEventListener('activate', function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 
-// 先用缓存（离线秒开），同时在后台拉新版本，下次打开生效
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  var isPage = req.mode === 'navigate' || req.destination === 'document';
   e.respondWith(caches.open(CACHE).then(function (cache) {
+    var fromCache = function () {
+      return cache.match(req, { ignoreSearch: true }).then(function (hit) {
+        return hit || cache.match('./index.html') || cache.match('./');
+      });
+    };
+    var fromNet = fetch(req).then(function (res) {
+      if (res && res.ok) cache.put(req, res.clone());
+      return res;
+    });
+    // 打开页面时优先用网上的新版本；断网才用缓存
+    if (isPage) return fromNet.catch(fromCache);
     return cache.match(req, { ignoreSearch: true }).then(function (hit) {
-      var net = fetch(req).then(function (res) {
-        if (res && res.ok) cache.put(req, res.clone());
-        return res;
-      }).catch(function () { return hit; });
-      return hit || net;
+      fromNet.catch(function () { });
+      return hit || fromNet;
     });
   }));
 });
