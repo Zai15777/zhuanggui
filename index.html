@@ -1659,7 +1659,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   global.Packer = { pack: pack, orientations: orientations };
 })(typeof window !== 'undefined' ? window : this);
 </script>
-<script>var APP_VERSION = '588e75f0';</script>
+<script>var APP_VERSION = '8e44c069';</script>
 <script>(function () {
   'use strict';
 
@@ -1671,7 +1671,6 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   ];
   var COLORS = ['#4f8ef7', '#f5a623', '#34c759', '#ff6b6b', '#a66cff', '#00b8d4', '#ff9f43', '#8bc34a', '#e056fd', '#7c8a9e'];
   var STORE_KEY = 'zgzs.v1';
-  var DEMO_NAMES = { '示例-立式饮水机': 1, '示例-台式饮水机': 1, '示例-壁挂管线机': 1 };
 
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var fmt = function (n, d) { return Number(n).toLocaleString('zh-CN', { maximumFractionDigits: d || 0, minimumFractionDigits: d || 0 }); };
@@ -1708,7 +1707,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     return null;
   }
 
-  function notDemo(it) { return !it || !DEMO_NAMES[it.name]; }
+  function notDemo(it) { return !it || String(it.name || '').indexOf('示例-') !== 0; }
   function stripDemo(s) {
     if (Array.isArray(s.library)) s.library = s.library.filter(notDemo);
     if (Array.isArray(s.items)) s.items = s.items.filter(notDemo);
