@@ -1659,7 +1659,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   global.Packer = { pack: pack, orientations: orientations };
 })(typeof window !== 'undefined' ? window : this);
 </script>
-<script>var APP_VERSION = '81e7a744';</script>
+<script>var APP_VERSION = '588e75f0';</script>
 <script>(function () {
   'use strict';
 
@@ -1671,11 +1671,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   ];
   var COLORS = ['#4f8ef7', '#f5a623', '#34c759', '#ff6b6b', '#a66cff', '#00b8d4', '#ff9f43', '#8bc34a', '#e056fd', '#7c8a9e'];
   var STORE_KEY = 'zgzs.v1';
-  var EXAMPLE_LIB = [
-    { name: '示例-立式饮水机', l: 37, w: 36, h: 103, kg: 17, sideways: false, maxLayers: 0 },
-    { name: '示例-台式饮水机', l: 33, w: 32, h: 52, kg: 8, sideways: false, maxLayers: 5 },
-    { name: '示例-壁挂管线机', l: 40, w: 15, h: 45, kg: 5, sideways: true, maxLayers: 0 }
-  ];
+  var DEMO_NAMES = { '示例-立式饮水机': 1, '示例-台式饮水机': 1, '示例-壁挂管线机': 1 };
 
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var fmt = function (n, d) { return Number(n).toLocaleString('zh-CN', { maximumFractionDigits: d || 0, minimumFractionDigits: d || 0 }); };
@@ -1697,8 +1693,8 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     var c = CONTAINERS[2];
     return {
       ctype: c.key, C: { L: c.L, W: c.W, H: c.H, maxKg: c.maxKg }, ordered: false,
-      items: [newItem(EXAMPLE_LIB[0], 350, COLORS[0])],
-      library: EXAMPLE_LIB.map(function (p) { return Object.assign({ id: uid() }, p); }),
+      items: [newItem(null, '', COLORS[0])],
+      library: [],
       plans: [], currentPlanId: null, planDirty: false,
       tipClosed: false
     };
@@ -1712,8 +1708,21 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     return null;
   }
 
+  function notDemo(it) { return !it || !DEMO_NAMES[it.name]; }
+  function stripDemo(s) {
+    if (Array.isArray(s.library)) s.library = s.library.filter(notDemo);
+    if (Array.isArray(s.items)) s.items = s.items.filter(notDemo);
+    if (!s.items.length) s.items = [newItem(null, '', COLORS[0])];
+    if (Array.isArray(s.plans)) {
+      s.plans.forEach(function (p) { if (Array.isArray(p.items)) p.items = p.items.filter(notDemo); });
+      s.plans = s.plans.filter(function (p) { return p.items && p.items.length; });
+      if (s.currentPlanId && !s.plans.some(function (p) { return p.id === s.currentPlanId; })) s.currentPlanId = null;
+    }
+  }
+
   var state = load() || defaultState();
   if (!Array.isArray(state.plans)) state.plans = [];
+  stripDemo(state);
   var saveTimer = null;
   function save() {
     clearTimeout(saveTimer);
@@ -2033,7 +2042,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     openModal('常用货物',
       '<div class="lib-add">' +
       '<div class="hint" style="margin-top:0">把纸箱尺寸存下来，下次填数量就能用。同名会覆盖旧尺寸。</div>' +
-      '<label><span>名称 / 型号</span><input type="text" id="libNewName" placeholder="例如 NT-50 台式饮水机"></label>' +
+      '<label><span>名称 / 型号</span><input type="text" id="libNewName" placeholder="例如 型号 A"></label>' +
       '<div class="grid3" style="margin-top:8px">' +
       '<label><span>长 cm</span><input type="number" inputmode="decimal" id="libNewL"></label>' +
       '<label><span>宽 cm</span><input type="number" inputmode="decimal" id="libNewW"></label>' +
@@ -2221,7 +2230,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
     openModal('从表格粘贴',
       '<div class="hint">在 Excel / WPS 里选中几行复制，粘贴到下面。每行顺序：<b>名称、长、宽、高、毛重、数量</b>（没有毛重就写 名称、长、宽、高、数量）。尺寸也可以写成 37*36*103。</div>' +
       '<div class="seg" id="pasteUnit"><button data-u="cm" class="on">尺寸单位 cm</button><button data-u="mm">尺寸单位 mm</button></div>' +
-      '<textarea id="pasteText" placeholder="立式饮水机	37	36	103	17	400"></textarea>' +
+      '<textarea id="pasteText" placeholder="货物名称	37	36	103	17	400"></textarea>' +
       '<div style="height:10px"></div><button class="btn primary big" id="pasteOk">识别并添加</button>');
     var unit = 'cm';
     $('#pasteUnit').addEventListener('click', function (e) {
@@ -2326,7 +2335,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
       '<div class="help">' +
       '<h4>怎么用</h4><ol>' +
       '<li>选柜型（尺寸可以改）。</li>' +
-      '<li>填货物的纸箱外尺寸、毛重、数量。饮水机一般不勾「可以侧放」。</li>' +
+      '<li>填货物的纸箱外尺寸、毛重、数量。不能倒放的货物不要勾「可以侧放」。</li>' +
       '<li>点「开始装柜」，上面会出 3D 图。手指拖动旋转，双指缩放，两指拖动平移。</li>' +
       '<li>拖动底部进度条或点 ▶，可以看一箱一箱的装货顺序（从柜子最里面往柜门装）。</li>' +
       '<li>装不下会自动分到第 2、3 柜，点左上角 ‹ › 切换。</li></ol>' +
@@ -2651,6 +2660,7 @@ textarea { min-height: 150px; font-size: 14px; font-family: ui-monospace, Menlo,
   View.setContainer(state.C);
   View.resize();
   renderPlanBar();
+  save();
   maybeInstallTip();
 
   var offlineStatus = $('#offlineStatus');
